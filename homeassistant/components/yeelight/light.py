@@ -610,9 +610,12 @@ class YeelightGenericLight(YeelightEntity, LightEntity):
         """Set the music mode on or off wrapped with _async_cmd."""
         bulb = self._bulb
         if music_mode:
+            self.device.music_mode_active = True
             await bulb.async_start_music()
         else:
             await bulb.async_stop_music()
+            # Ignore connects/disconnects until music mode is fully cleared out
+            self.device.music_mode_active = False
 
     @_async_cmd
     async def async_set_brightness(self, brightness, duration) -> None:
@@ -841,6 +844,11 @@ class YeelightGenericLight(YeelightEntity, LightEntity):
         duration = int(self.config[CONF_TRANSITION])  # in ms
         if ATTR_TRANSITION in kwargs:  # passed kwarg overrides config
             duration = int(kwargs.get(ATTR_TRANSITION) * 1000)  # kwarg in s
+
+        # if we previously enabled music mode, flush out the socket
+        # since it will be implicitly disabled when turned off
+        if self.device.music_mode_active:
+            await self.async_set_music_mode(False)
 
         await self._async_turn_off(duration)
         self._async_schedule_state_check(False)

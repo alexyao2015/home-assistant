@@ -75,6 +75,11 @@ class YeelightDevice:
         self._initialized = False
         self._name = None
 
+        # What we expect music mode to be in
+        # Used to ignore music mode disconnections/reconnections when
+        # switching between normal and music mode
+        self.music_mode_active = False
+
     @property
     def bulb(self):
         """Return bulb device."""
@@ -220,7 +225,12 @@ class YeelightDevice:
     def async_update_callback(self, data):
         """Update push from device."""
         was_available = self._available
-        self._available = data.get(KEY_CONNECTED, True)
+        # the library will send disconnects when entering and exiting music mode
+        # Ignore those so the frontend can show the device as available
+        if self.music_mode_active:
+            self._available = True
+        else:
+            self._available = data.get(KEY_CONNECTED, True)
         if update_needs_bg_power_workaround(data) or (
             not was_available and self._available
         ):
